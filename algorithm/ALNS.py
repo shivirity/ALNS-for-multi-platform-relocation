@@ -15,12 +15,11 @@ from algorithm.DestroyOperator import RandomDestroy
 # from DestroyOperator.ShawDestroy import ShawDestroy
 # from RepairOperator.GreedyRepair import GreedyRepair as GreedyRepair
 from algorithm.RepairOperator import RandomRepair
-
 # from RepairOperator.RegretRepair import RegretRepair as RegretRepair
 
 random.seed(42)
 
-logging.basicConfig(level=logging.INFO,
+logging.basicConfig(level=logging.WARNING,
                     format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
 
@@ -53,8 +52,9 @@ class Problem:
     # repairList = [GreedyRepair, RandomRepair, RegretRepair]  # repair算子列表
     repairList = [RandomRepair]
 
-    def __init__(self, num_of_van, van_location, van_dis_left, van_load, c_s, c_v, t_p, t_f, t_roll, c_mat, ei_s_arr,
-                 ei_c_arr, eip_arr, x_s_arr, x_c_arr, alpha):
+    def __init__(self, num_of_van: int, van_location: list, van_dis_left: list, van_load: list, c_s: int, c_v: int,
+                 cur_t: int, t_p: int, t_f: int, t_roll: int, c_mat: np.ndarray, ei_s_arr: np.ndarray, ei_c_arr: np.ndarray,
+                 esd_arr: np.ndarray, x_s_arr: list, x_c_arr: list, alpha: float, plot: bool):
         """
 
         :param num_of_van: number of relocation vans (RV)
@@ -63,22 +63,24 @@ class Problem:
         :param van_load: load of each van
         :param c_s: capacity of stations
         :param c_v: capacity of relocation van
+        :param cur_t: current time step (in 10 min)
         :param t_p: duration of planning horizon (in 10 min)
         :param t_f: duration of forecasting horizon (in 10 min)
         :param t_roll: duration of rolling step (in 10 min)
         :param c_mat: matrix of distance between stations (in time step), station id 0 represents the depot
-        :param ei_arr: array of Expected Inventory
-        :param eip_arr: array of Expected Increase in Profit
+        :param ei_s_arr: array of Expected Inventory for self
+        :param ei_c_arr: array of Expected Inventory for competitor
+        :param esd_arr: array of Expected Satisfied Demand
         :param x_s_arr: original number of x_s at planning point
         :param x_c_arr: original number of x_c at planning point
         :param alpha: weight of relocation cost
+        :param plot: whether to plot the result
         """
         assert len(van_location) == len(van_dis_left) == num_of_van
 
         # algorithm params
         self.params = Params.parameter()
-        self.end_temp = self.params.init_temp * self.params.t
-        # ori_dict = createDict()
+        self.end_temp = self.params.init_temp * self.params.t  # end temperature
         self.operator_time = createDict()  # 记录每个算子选中次数
         self.operator_score = createDict()  # 记录每个算子的得分
         # self.destroyNr = int(self.params.drate * self.numberOfNode)  # destroy的点的数量
@@ -95,16 +97,20 @@ class Problem:
         self.van_load = van_load
         self.cap_station = c_s
         self.cap_van = c_v
+        self.cur_t = cur_t
         self.t_plan = t_p
         self.t_fore = t_f
         self.t_roll = t_roll
         self.c_mat = c_mat
         self.ei_s_arr = ei_s_arr
         self.ei_c_arr = ei_c_arr
-        self.eip_arr = eip_arr
+        self.esd_arr = esd_arr
         self.x_s_arr = x_s_arr
         self.x_c_arr = x_c_arr
         self.alpha = alpha
+
+        self.to_plot = plot
+        self.print_log = False
 
         # other params
         self.destroy_num = int(self.params.drate * self.num_of_station)  # destroy的点的数量
@@ -112,8 +118,8 @@ class Problem:
 
         # route computer
         self.route_com = RouteComputer(c_van=c_v, c_station=c_s, c_mat=c_mat, ei_s_arr=ei_s_arr, ei_c_arr=ei_c_arr,
-                                       eip_arr=eip_arr, x_s_arr=x_s_arr, x_c_arr=x_c_arr, t_plan=t_p, t_fore=t_f,
-                                       alpha=alpha, custormers=self.customers, num_of_vans=num_of_van)
+                                       esd_arr=esd_arr, x_s_arr=x_s_arr, x_c_arr=x_c_arr, t_cur=cur_t, t_plan=t_p,
+                                       t_fore=t_f, alpha=alpha, customers=self.customers, num_of_vans=num_of_van)
 
         # metrics
         self.run_time = None
@@ -127,36 +133,48 @@ class Problem:
         # solution
         self.best_sol = None
 
+        # iteration time
+        self.iter_time = None
+
     def get_initial_sol(self):
         """
         formulate an initial solution
         :return:
         """
         init_sol = Solution(van_loc=self.van_loc, van_dis_left=self.van_dis_left, van_load=self.van_load)
-        customers = list(self.customers)
+        customers = [val for val in self.customers if val not in self.van_loc]
+        # customers = list(self.customers)
+        # greedy algorithm
         for van in range(self.num_of_van):
             loc = init_sol.van_loc[van]  # 站点位置
             dis_left = init_sol.van_dis_left[van]  # 到达时间
-            load = init_sol.van_loc[van]  # 初始负载
+            # load = init_sol.van_loc[van]  # 初始负载
             route, last_node = [loc], loc  # 潜在路径
-            while self.route_com.is_feasible_route(dis_left=dis_left, route=route):
+            while self.route_com.is_feasible_init_route(dis_left=dis_left, route=route):
                 node_ind = np.argmin(self.c_mat[last_node][i] for i in customers)
                 last_node = customers[node_ind]
                 route.append(last_node)
-                customers.remove(last_node)
+                customers.pop(node_ind)
+                # customers.remove(last_node)
             route.pop(-1)
             customers.append(last_node)
-            cost, instruct = self.route_com.compute_route(r=route, t_left=dis_left, l=load)
-            init_sol.add_route(route=route, cost=cost, instruct=instruct)
+            # cost, instruct = self.route_com.compute_route(r=route, t_left=dis_left, init_l=load)
+            # cost, instruct = self.route_com.get_sol_cost(r=route, t_left=dis_left, init_l=load)
+            init_sol.add_route(route=route)
+
         assert init_sol.is_feasible(self.num_of_van)
+        init_sol.usages = [False for _ in range(self.num_of_van)]
+        self.route_com.compute_total_cost(solution=init_sol)
+        logging.info('initial solution cost:{}'.format(init_sol.total_cost))
+
         return init_sol
 
-    def init_weight(self):
-        self.weight_destroy = np.array([1 for _ in range(len(self.destroyList))], dtype=float)  # 每个destroy算子的权重
-        self.weight_repair = np.array([1 for _ in range(len(self.repairList))], dtype=float)  # 每个repair算子的权重
-        p_destroy = self.weight_destroy / sum(self.weight_destroy)
-        p_repair = self.weight_repair / sum(self.weight_repair)
-        return p_destroy, p_repair
+    # def init_weight(self):
+    #     self.weight_destroy = np.array([1 for _ in range(len(self.destroyList))], dtype=float)  # 每个destroy算子的权重
+    #     self.weight_repair = np.array([1 for _ in range(len(self.repairList))], dtype=float)  # 每个repair算子的权重
+    #     p_destroy = self.weight_destroy / sum(self.weight_destroy)
+    #     p_repair = self.weight_repair / sum(self.weight_repair)
+    #     return p_destroy, p_repair
 
     def updateWeight(self, operator, used: bool):
         """
@@ -185,6 +203,7 @@ class Problem:
         process of the problem object
         :return:
         """
+        logging.debug('start running')
         global_sol = copy.deepcopy(self.init_sol)  # global best
         current_sol = copy.deepcopy(self.init_sol)
         bestVal_list = []
@@ -199,13 +218,14 @@ class Problem:
 
         start = time.time()
         temp = self.params.init_temp  # initial temperature
-        iter = 0  # iteration times
+        iter_num = 0  # iteration times
         time_1 = 0
         time_2 = 0
         time_3 = 0
-        while iter < self.params.iter_time:
+        print('no repositioning cost:{}'.format(self.route_com.compute_no_repositioning_cost()))
+        while iter_num < self.params.iter_time and time.time() - start < self.params.time_limit:
 
-            # logging.info(f'{iter}')
+            # logging.info(f'{iter_num}')
             # weight list of destroy operators
             p_destroy = self.weight_destroy / sum(self.weight_destroy)
             # weight list of repair operators
@@ -213,25 +233,27 @@ class Problem:
 
             # 内层循环，更新算子得分，循环完成后更新一次算子权重
             for i in range(self.params.fre):
-
                 start_1 = time.time()
                 Destroy = np.random.choice(self.destroyList, p=p_destroy)
                 Repair = np.random.choice(self.repairList, p=p_repair)
                 exist_stations, removed_sol = Destroy.destroy(
                     s=current_sol, destroy_num=self.destroy_num, computer=self.route_com)
+                logging.debug('destroyed solution:{}'.format(removed_sol))
                 tmp_sol = Repair.repair(s=removed_sol, exist_stations=exist_stations, computer=self.route_com)
                 end_1 = time.time()
                 # print(end_1-start_1)
                 time_1 += end_1 - start_1  # operator operation time
                 self.operator_time = updateDict(self.operator_time, Destroy, Repair, 1)  # update using time
+                logging.debug('operator time:{}'.format(self.operator_time))
 
                 start_2 = time.time()
                 tmpVal = tmp_sol.total_cost
-                acc_p = math.exp((tmpVal - current_sol.total_cost) / temp)  # simulated annealing acceptance
+                # simulated annealing acceptance
+                acc_p = math.exp((tmpVal - current_sol.total_cost) / temp) if temp > 0.05 else 0
 
                 # better than global best
                 if tmpVal > global_sol.total_cost:
-                    global_sol = copy.deepcopy(tmp_sol)
+                    global_sol = tmp_sol
                     current_sol = copy.deepcopy(tmp_sol)
                     bestVal_list.append(tmpVal)
                     bestVal, currentVal = tmp_sol.total_cost, tmp_sol.total_cost
@@ -240,7 +262,7 @@ class Problem:
 
                 # better than current sol
                 elif tmpVal > current_sol.total_cost:
-                    current_sol = copy.deepcopy(tmp_sol)
+                    current_sol = tmp_sol
                     currentVal = tmp_sol.total_cost
                     self.operator_score = updateDict(self.operator_score, Destroy, Repair, self.params.theta2)
 
@@ -277,9 +299,28 @@ class Problem:
             time_3 += end_3 - start_3
 
             temp = temp * self.params.c
-            iter += 1
+            iter_num += 1
             bestVal_iter.append(bestVal)
             currentVal_iter.append(currentVal)
+
+            if iter_num % 20 == 0 and self.print_log:
+                print('iter_num:', iter_num)
+                print('bestVal:', bestVal)
+                print('currentVal:', currentVal)
+                print('temp:', temp)
+                print('noImprove:', noImprove)
+                print('time_1:', time_1)
+                print('time_2:', time_2)
+                print('time_3:', time_3)
+                print('--------------------------------------')
+            if iter_num % 100 == 0 and self.print_log:
+                print('repositioning cost: {}'.format(sum(current_sol.costs)))
+                print('no repositioning cost: {}'.format(current_sol.unvisited_sum))
+                print('current routes: {}'.format(current_sol.routes))
+                print('current costs: {}'.format(current_sol.costs))
+                print('current instructs: {}'.format(current_sol.instructs))
+
+        self.iter_time = iter_num
 
         end = time.time()
         self.run_time = end - start
@@ -289,7 +330,6 @@ class Problem:
         self.bestVal_iter = bestVal_iter
         self.currentVal_iter = currentVal_iter
 
-        '''
         # 输出运行时间和各算子使用次数
         print('time span:%.2f\n' % self.run_time)
         # print('最优值：', globalSol.totalCost)
@@ -298,19 +338,22 @@ class Problem:
         # print('最优解：', globalSol)
         for key, value in self.operator_time.items():
             print('{}:{}'.format(key.__name__, value))
-        '''
+        # comparison
+        print('no repositioning cost:{}'.format(self.route_com.compute_no_repositioning_cost()))
+        if self.to_plot:
+            self.plot()
 
     def plot(self):
         import matplotlib.pyplot as plt
         plt.figure(figsize=(10, 3))
-        X = list(range(self.params.iter_time))
+        X = list(range(self.iter_time))
         plt.plot(X, self.bestVal_iter, label='best_value')
         plt.plot(X, self.currentVal_iter, label='current_value')
         plt.legend()
         plt.show()
 
     def get_result(self) -> dict:
-        sol = copy.deepcopy(self.best_sol)
+        sol = self.best_sol
 
         # objective value
         result = {'objective': sol.total_cost}
@@ -319,21 +362,20 @@ class Problem:
         van_loc_list, van_n_list = [], []
         van_dis_left_list, dest_list = [], []
         for van in range(len(sol.routes)):
-            step_loc_list, step_n_list, step, cumu_step, s_id = \
-                [0 for _ in range(self.t_roll)], [0 for _ in range(self.t_roll)], 0, sol.van_dis_left[van], 0
+            step_loc_list, step_n_list, step, cumu_step, s_ind = \
+                [0 for _ in range(self.t_plan)], [0 for _ in range(self.t_plan)], 0, sol.van_dis_left[van], 0
             van_dis_flag = False
-            while step < self.t_roll:
+            while step < self.t_plan:
                 if step == cumu_step:
-                    step_loc_list[int(step)] = sol.routes[van][s_id]
-                    step_n_list[int(step)] = sol.instructs[van][s_id]
-                    cumu_step += self.c_mat[sol.routes[van][s_id], sol.routes[van][s_id + 1]]
-                    if cumu_step >= self.t_roll and van_dis_flag is False:
+                    step_loc_list[int(step)] = sol.routes[van][s_ind]
+                    step_n_list[int(step)] = sol.instructs[van][s_ind]
+                    cumu_step += self.c_mat[sol.routes[van][s_ind], sol.routes[van][s_ind + 1]]
+                    if cumu_step >= self.t_plan and van_dis_flag is False:
                         van_dis_flag = True
-                        van_dis_left_list.append(
-                            cumu_step - self.t_roll)
-                        dest_list.append(sol.routes[van][s_id+1])
+                        # van_dis_left_list.append(cumu_step - self.t_roll)
+                        dest_list.append(sol.routes[van][s_ind+1])
                     else:
-                        s_id += 1
+                        s_ind += 1
                     step += 1
                 else:
                     step_loc_list[int(step)], step_n_list[int(step)] = -1, -1
@@ -341,7 +383,7 @@ class Problem:
             van_loc_list.append(copy.deepcopy(step_loc_list))
             van_n_list.append(copy.deepcopy(step_n_list))
 
-        assert len(van_loc_list) == len(van_n_list) == len(sol.routes) == len(van_dis_left_list)
+        assert len(van_loc_list) == len(van_n_list) == len(sol.routes)
         result['van_dis_left'] = van_dis_left_list
         result['destination'] = dest_list
         result['loc'] = van_loc_list

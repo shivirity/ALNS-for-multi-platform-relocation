@@ -7,24 +7,26 @@ class Solution:
         self.routes = []
         self.costs = []
         self.instructs = []
+        self.usages = []
         self.van_loc = list(van_loc)
         self.van_dis_left = list(van_dis_left)
         self.van_load = list(van_load)
 
+        self.unvisited_sum = 0
+
     @property
     def total_cost(self):
-        return sum(self.costs) if len(self.costs) > 0 else 0
+        return sum(self.costs)+self.unvisited_sum if len(self.costs) > 0 else 0
 
     @property
     def num_of_route(self):
         return len(self.costs)
 
     # maybe useless
-    def add_route(self, route, cost, instruct):
-        tmp_route, tmp_instruct = list(route), list(instruct)
-        self.routes.append(tmp_route)
-        self.costs.append(cost)
-        self.instructs.append(tmp_instruct)
+    def add_route(self, route):
+        self.routes.append(list(route))
+        # self.costs.append(cost)
+        # self.instructs.append(tmp_instruct)
 
     # maybe useless
     def remove_route(self, route_ind):
@@ -42,17 +44,18 @@ class Solution:
         self.instructs = instructs
 
     def get_exist_stations(self):
-        station_list = []
-        for route in self.routes:
-            for station in route:
-                station_list.append(station)
-        return station_list
+        return [station for route in self.routes for station in route]
+        # station_list = []
+        # for route in self.routes:
+        #     for station in route:
+        #         station_list.append(station)
+        # return station_list
 
-    def replace_route(self, route_ind, route, cost, instruct):
-        tmp_route, tmp_instruct = list(route), list(instruct)
-        self.routes[route_ind] = tmp_route
-        self.costs[route_ind] = cost
-        self.instructs[route_ind] = tmp_instruct
+    def replace_route(self, route_ind, route):
+        # tmp_route = list(route)
+        self.routes[route_ind] = list(route)
+        # self.costs[route_ind] = cost
+        # self.instructs[route_ind] = tmp_instruct
         assert len(self.costs) == len(self.routes) == len(self.instructs)
 
     def is_feasible(self, num_of_van) -> bool:
