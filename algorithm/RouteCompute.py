@@ -48,8 +48,9 @@ class RouteComputer:
             station_id - 1, self.t_cur, self.t_cur + arr_t, self.x_s_arr[station_id - 1], self.x_c_arr[station_id - 1]]
         # print('t_cur', self.t_cur, 'arr_t', arr_t, 't_fore', self.t_fore)
         after_val = self.esd_arr[
-            station_id - 1, (self.t_cur + arr_t) if (self.t_cur + arr_t) < 36 else (self.t_cur + arr_t - 1),
-            self.t_cur + self.t_fore,
+            station_id - 1,
+            (self.t_cur + arr_t) if (self.t_cur + arr_t) < 36 else (self.t_cur + arr_t - 1),
+            (self.t_cur + self.t_fore) if (self.t_cur + self.t_fore) < 49 else 48,
             round(self.ei_s_arr[
                       station_id - 1, self.t_cur, self.t_cur + arr_t, self.x_s_arr[station_id - 1], self.x_c_arr[
                           station_id - 1]] + ins),
@@ -64,13 +65,12 @@ class RouteComputer:
         #          ins_dict[ins]] for k in range(self.t_fore)])
         return before_val + after_val
 
-    def compute_route(self, r, t_left, t_cur, init_l):
+    def compute_route(self, r, t_left, init_l):
         """
         calculate the cost of the route and the instructions using dynamic programming
 
         :param r: the given route (in list)
         :param t_left: time left to get to the start location
-        :param t_cur: current time step
         :param init_l: initial load on the van
         :return:
         """
@@ -232,7 +232,7 @@ class RouteComputer:
         for van in range(self.num_of_vans):
             if not solution.usages[van]:
                 cost, instruct = self.compute_route(r=solution.routes[van], t_left=solution.van_dis_left[van],
-                                                    t_cur=self.t_cur, init_l=solution.van_load[van])
+                                                    init_l=solution.van_load[van])
                 # logging.debug(f'route {van} cost: {solution.costs}, instruct: {solution.instructs}')
                 solution.costs[van], solution.instructs[van] = cost, instruct
                 solution.usages[van] = True
