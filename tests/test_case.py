@@ -7,7 +7,7 @@ import numpy as np
 np.random.seed(42)
 
 # c_mat
-c_mat = np.random.randint(2, 6, size=[26, 26])  # discrete time step (in 10 min)
+c_mat = np.random.randint(2, 5, size=[26, 26])  # discrete time step (in 10 min)
 for i in range(c_mat.shape[0]):
     c_mat[i][i] = 0
     for j in range(i+1, c_mat.shape[0]):
@@ -33,12 +33,12 @@ with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\
 
 case1 = {
     'num_of_van': 1,
-    'van_location': [5],
-    'van_dis_left': [1],
-    'van_load': [10],
+    'van_location': [0],
+    'van_dis_left': [0],
+    'van_load': [0],
     'c_s': 40,
     'c_v': 50,
-    'cur_t': 19 * 6,
+    'cur_t': 14 * 6,
     't_p': 2 * 6,
     't_f': 4 * 6,
     't_roll': 1 * 6,

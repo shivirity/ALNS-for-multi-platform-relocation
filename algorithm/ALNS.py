@@ -110,7 +110,7 @@ class Problem:
         self.alpha = alpha
 
         self.to_plot = plot
-        self.print_log = False
+        self.print_log = plot
 
         # other params
         self.destroy_num = int(self.params.drate * self.num_of_station)  # destroy的点的数量
@@ -238,7 +238,7 @@ class Problem:
                 Repair = np.random.choice(self.repairList, p=p_repair)
                 exist_stations, removed_sol = Destroy.destroy(
                     s=current_sol, destroy_num=self.destroy_num, computer=self.route_com)
-                logging.debug('destroyed solution:{}'.format(removed_sol))
+                # logging.debug('destroyed solution:{}'.format(removed_sol))
                 tmp_sol = Repair.repair(s=removed_sol, exist_stations=exist_stations, computer=self.route_com)
                 end_1 = time.time()
                 # print(end_1-start_1)
@@ -369,21 +369,26 @@ class Problem:
                 if step == cumu_step:
                     step_loc_list[int(step)] = sol.routes[van][s_ind]
                     step_n_list[int(step)] = sol.instructs[van][s_ind]
-                    cumu_step += self.c_mat[sol.routes[van][s_ind], sol.routes[van][s_ind + 1]]
+                    if s_ind < len(sol.routes[van]) - 1:
+                        cumu_step += self.c_mat[sol.routes[van][s_ind], sol.routes[van][s_ind + 1]]
+                    else:
+                        cumu_step += self.t_plan
                     if cumu_step >= self.t_plan and van_dis_flag is False:
                         van_dis_flag = True
-                        # van_dis_left_list.append(cumu_step - self.t_roll)
-                        dest_list.append(sol.routes[van][s_ind+1])
+                        van_dis_left_list.append(cumu_step - self.t_plan - self.t_roll)
+                        dest_list.append(sol.routes[van][s_ind])
                     else:
                         s_ind += 1
                     step += 1
                 else:
-                    step_loc_list[int(step)], step_n_list[int(step)] = -1, -1
+                    step_loc_list[int(step)], step_n_list[int(step)] = None, None
                     step += 1
             van_loc_list.append(copy.deepcopy(step_loc_list))
             van_n_list.append(copy.deepcopy(step_n_list))
 
         assert len(van_loc_list) == len(van_n_list) == len(sol.routes)
+        result['start_time'] = self.cur_t  # hour * 6
+        result['routes'] = sol.routes
         result['van_dis_left'] = van_dis_left_list
         result['destination'] = dest_list
         result['loc'] = van_loc_list

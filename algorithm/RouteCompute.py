@@ -45,17 +45,17 @@ class RouteComputer:
         # assert len(available_ins) == 2 * self.cap_van / 10
         # ins_dict = {quan: available_ins.index(quan) for quan in available_ins}
         before_val = self.esd_arr[
-            station_id - 1, self.t_cur, self.t_cur + arr_t, self.x_s_arr[station_id - 1], self.x_c_arr[station_id - 1]]
+            round(station_id - 1), round(self.t_cur), round(self.t_cur + arr_t), self.x_s_arr[station_id - 1], self.x_c_arr[station_id - 1]]
         # print('t_cur', self.t_cur, 'arr_t', arr_t, 't_fore', self.t_fore)
         after_val = self.esd_arr[
             station_id - 1,
-            (self.t_cur + arr_t) if (self.t_cur + arr_t) < 36 else (self.t_cur + arr_t - 1),
-            (self.t_cur + self.t_fore) if (self.t_cur + self.t_fore) < 49 else 48,
+            round(self.t_cur + arr_t) if (self.t_cur + arr_t) < 36 else round(self.t_cur + arr_t - 1),
+            round(self.t_cur + self.t_fore) if (self.t_cur + self.t_fore) < 49 else 48,
             round(self.ei_s_arr[
-                      station_id - 1, self.t_cur, self.t_cur + arr_t, self.x_s_arr[station_id - 1], self.x_c_arr[
+                      station_id - 1, round(self.t_cur), round(self.t_cur + arr_t), self.x_s_arr[station_id - 1], self.x_c_arr[
                           station_id - 1]] + ins),
             round(self.ei_c_arr[
-                      station_id - 1, self.t_cur, self.t_cur + arr_t, self.x_s_arr[station_id - 1], self.x_c_arr[
+                      station_id - 1, round(self.t_cur), round(self.t_cur + arr_t), self.x_s_arr[station_id - 1], self.x_c_arr[
                           station_id - 1]])]
         # return sum(
         #     [self.eip_arr[
@@ -129,11 +129,11 @@ class RouteComputer:
                             else:  # feasible
                                 ins = former_k - k
                                 if 0 <= round(self.ei_s_arr[
-                                                  route[i] - 1,
-                                                  self.t_cur,
-                                                  self.t_cur + t_trip,
-                                                  self.x_s_arr[route[i] - 1],
-                                                  self.x_c_arr[route[i] - 1]]) + ins <= self.cap_station:
+                                                  round(route[i] - 1),
+                                                  round(self.t_cur),
+                                                  round(self.t_cur + t_trip),
+                                                  round(self.x_s_arr[route[i] - 1]),
+                                                  round(self.x_c_arr[route[i] - 1])]) + ins <= self.cap_station:
                                     station_esd = self.compute_ESD_in_horizon(station_id=route[i], arr_t=t_trip, ins=ins)
                                     if station_esd + reward_arr[former_k, i - 1] > reward_arr[k, i]:
                                         reward_arr[k, i] = station_esd + reward_arr[former_k, i - 1]
@@ -205,7 +205,7 @@ class RouteComputer:
             return True
         else:
             total_time = dis_left + sum([self.c_mat[route[i]][route[i + 1]] for i in range(len(route) - 1)])
-            return self.t_plan < total_time <= self.t_fore
+            return total_time <= self.t_plan
 
     def is_feasible_init_route(self, dis_left, route) -> bool:
         """feasible check for initial route"""
@@ -214,7 +214,7 @@ class RouteComputer:
             return True
         else:
             total_time = dis_left + sum([self.c_mat[route[i]][route[i + 1]] for i in range(len(route) - 1)])
-            return total_time <= self.t_fore
+            return total_time <= self.t_plan
 
     def compute_total_cost(self, solution: Solution):
         """

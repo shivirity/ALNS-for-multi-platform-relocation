@@ -19,7 +19,7 @@ def repair(s, exist_stations: list, computer: RouteComputer):
         if not computer.is_feasible_route(t_left, route):
             logging.debug('solution infeasible')
         last_insert = -1
-        while computer.get_route_duration(dis_left=t_left, route=route) <= computer.t_fore:
+        while computer.get_route_duration(dis_left=t_left, route=route) <= computer.t_plan:
             if len(unserved_stations) > 0:
                 chosen_station = random.sample(unserved_stations, 1)[0]
                 chosen_ind = random.choice(range(1, len(route) + 1))
@@ -32,7 +32,7 @@ def repair(s, exist_stations: list, computer: RouteComputer):
             if last_insert < 0:
                 logging.error('error last_insert')
             else:
-                if computer.get_route_duration(dis_left=t_left, route=route) > computer.t_fore:
+                if computer.get_route_duration(dis_left=t_left, route=route) > computer.t_plan:
                     remove_one = route.pop(chosen_ind)
                     assert remove_one == last_insert
                     unserved_stations.append(chosen_station)

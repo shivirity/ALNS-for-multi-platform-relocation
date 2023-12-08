@@ -2,6 +2,7 @@
 relocation-operations-calculation module for multi-platform BSS operations
 ## API usage
 Refer to ``test_main.py`` in ``\tests`` for examples.
+
 ```python
 from main import get_relocation_routes
 

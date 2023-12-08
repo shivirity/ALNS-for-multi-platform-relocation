@@ -33,7 +33,7 @@ class parameter:
         self.r = 0.5
 
         # 破坏率
-        self.drate = 0.15
+        self.drate = 0.1
 
         # 初始温度
         self.init_temp = 10000
@@ -41,7 +41,8 @@ class parameter:
         # 温度终止系数
         self.t = 0.01
 
-        # 迭代总次数
+        # 迭代总次数限制
         self.iter_time = 10000
 
-        self.time_limit = 600  # in seconds
+        # 迭代总时间限制
+        self.time_limit = 60  # in seconds

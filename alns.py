@@ -1,5 +1,4 @@
 from algorithm.ALNS import Problem
-from tests.test_case import case1
 
 
 def get_relocation_routes(num_of_van: int, van_location: list, van_dis_left: list, van_load: list,
@@ -36,7 +35,3 @@ def get_relocation_routes(num_of_van: int, van_location: list, van_dis_left: lis
     problem.plot()
     result = problem.get_result()
     return result, problem, problem.best_sol
-
-
-if __name__ == "__main__":
-    test_dict, problem, best_solution = get_relocation_routes(**case1, plot=True)
