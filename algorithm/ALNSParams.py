@@ -45,4 +45,4 @@ class parameter:
         self.iter_time = 10000
 
         # 迭代总时间限制
-        self.time_limit = 60  # in seconds
+        self.time_limit = 300  # in seconds

@@ -54,7 +54,7 @@ class Problem:
 
     def __init__(self, num_of_van: int, van_location: list, van_dis_left: list, van_load: list, c_s: int, c_v: int,
                  cur_t: int, t_p: int, t_f: int, t_roll: int, c_mat: np.ndarray, ei_s_arr: np.ndarray, ei_c_arr: np.ndarray,
-                 esd_arr: np.ndarray, x_s_arr: list, x_c_arr: list, alpha: float, plot: bool):
+                 esd_arr: np.ndarray, x_s_arr: list, x_c_arr: list, alpha: float, plot: bool, mode: str):
         """
 
         :param num_of_van: number of relocation vans (RV)
@@ -75,6 +75,7 @@ class Problem:
         :param x_c_arr: original number of x_c at planning point
         :param alpha: weight of relocation cost
         :param plot: whether to plot the result
+        :param mode: 'multi' or 'single
         """
         assert len(van_location) == len(van_dis_left) == num_of_van
 
@@ -102,12 +103,12 @@ class Problem:
         self.t_fore = t_f
         self.t_roll = t_roll
         self.c_mat = c_mat
-        self.ei_s_arr = ei_s_arr
-        self.ei_c_arr = ei_c_arr
-        self.esd_arr = esd_arr
-        self.x_s_arr = x_s_arr
-        self.x_c_arr = x_c_arr
-        self.alpha = alpha
+        # self.ei_s_arr = ei_s_arr
+        # self.ei_c_arr = ei_c_arr
+        # self.esd_arr = esd_arr
+        # self.x_s_arr = x_s_arr
+        # self.x_c_arr = x_c_arr
+        # self.alpha = alpha
 
         self.to_plot = plot
         self.print_log = plot
@@ -119,7 +120,7 @@ class Problem:
         # route computer
         self.route_com = RouteComputer(c_van=c_v, c_station=c_s, c_mat=c_mat, ei_s_arr=ei_s_arr, ei_c_arr=ei_c_arr,
                                        esd_arr=esd_arr, x_s_arr=x_s_arr, x_c_arr=x_c_arr, t_cur=cur_t, t_plan=t_p,
-                                       t_fore=t_f, alpha=alpha, customers=self.customers, num_of_vans=num_of_van)
+                                       t_fore=t_f, alpha=alpha, customers=self.customers, num_of_vans=num_of_van, mode=mode)
 
         # metrics
         self.run_time = None

@@ -18,9 +18,9 @@ for i in range(c_mat.shape[0]):
 # t_0 represents start time, t represents end time
 # ei_s_arr = np.random.uniform(0, 50, size=(30, 1, 49, 51, 51))
 # ei_c_arr = np.random.uniform(0, 50, size=(30, 1, 49, 51, 51))
-with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\expectation_calculation\EI_s_array.pkl', 'rb') as f:
+with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\expectation_calculation\EI_s_array_single.pkl', 'rb') as f:
     ei_s_arr = pickle.load(f)
-with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\expectation_calculation\EI_c_array.pkl', 'rb') as f:
+with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\expectation_calculation\EI_c_array_multi.pkl', 'rb') as f:
     ei_c_arr = pickle.load(f)
 
 # eip_arr
@@ -28,7 +28,7 @@ with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\
 # esd_arr = np.random.uniform(-10, 100, size=(30, 51, 51, 6))
 # eip_arr[:, :, :, 3] = 0
 # mapping: {-30, -20, -10, 10, 20, 30}
-with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\expectation_calculation\ESD_array.pkl', 'rb') as f:
+with open(r'D:\Desktop\Multi-platform EBSS operations\multi-platform-relocation\expectation_calculation\ESD_array_single.pkl', 'rb') as f:
     esd_arr = pickle.load(f)
 
 case1 = {
@@ -49,6 +49,7 @@ case1 = {
     'x_s_arr': [30 for _ in range(c_mat.shape[0]-1)],
     'x_c_arr': [60 for _ in range(c_mat.shape[0]-1)],
     'alpha': 5.0,
+    'mode': 'single',
 }
 
 # case2 = {
