@@ -7,6 +7,7 @@ import copy
 import math
 
 import algorithm.ALNSParams as Params
+from algorithm.ALNSParams import RE_START_T, RE_END_T
 
 from solution import Solution
 from algorithm.RouteCompute import RouteComputer
@@ -15,6 +16,7 @@ from algorithm.DestroyOperator import RandomDestroy
 # from DestroyOperator.ShawDestroy import ShawDestroy
 # from RepairOperator.GreedyRepair import GreedyRepair as GreedyRepair
 from algorithm.RepairOperator import RandomRepair
+
 # from RepairOperator.RegretRepair import RegretRepair as RegretRepair
 
 random.seed(42)
@@ -53,8 +55,10 @@ class Problem:
     repairList = [RandomRepair]
 
     def __init__(self, num_of_van: int, van_location: list, van_dis_left: list, van_load: list, c_s: int, c_v: int,
-                 cur_t: int, t_p: int, t_f: int, t_roll: int, c_mat: np.ndarray, ei_s_arr: np.ndarray, ei_c_arr: np.ndarray,
-                 esd_arr: np.ndarray, x_s_arr: list, x_c_arr: list, alpha: float, plot: bool, mode: str):
+                 cur_t: int, t_p: int, t_f: int, t_roll: int, c_mat: np.ndarray, ei_s_arr: np.ndarray,
+                 ei_c_arr: np.ndarray,
+                 esd_arr: np.ndarray, x_s_arr: list, x_c_arr: list, alpha: float, plot: bool, mode: str,
+                 time_limit: int):
         """
 
         :param num_of_van: number of relocation vans (RV)
@@ -76,6 +80,7 @@ class Problem:
         :param alpha: weight of relocation cost
         :param plot: whether to plot the result
         :param mode: 'multi' or 'single
+        :param time_limit: max run time for single opt (in seconds)
         """
         assert len(van_location) == len(van_dis_left) == num_of_van
 
@@ -103,15 +108,17 @@ class Problem:
         self.t_fore = t_f
         self.t_roll = t_roll
         self.c_mat = c_mat
-        # self.ei_s_arr = ei_s_arr
+        self.ei_s_arr = ei_s_arr
         # self.ei_c_arr = ei_c_arr
         # self.esd_arr = esd_arr
-        # self.x_s_arr = x_s_arr
-        # self.x_c_arr = x_c_arr
+        self.x_s_arr = x_s_arr
+        self.x_c_arr = x_c_arr
         # self.alpha = alpha
 
         self.to_plot = plot
         self.print_log = plot
+        self.mode = mode
+        self.time_limit = time_limit
 
         # other params
         self.destroy_num = int(self.params.drate * self.num_of_station)  # destroy的点的数量
@@ -120,7 +127,8 @@ class Problem:
         # route computer
         self.route_com = RouteComputer(c_van=c_v, c_station=c_s, c_mat=c_mat, ei_s_arr=ei_s_arr, ei_c_arr=ei_c_arr,
                                        esd_arr=esd_arr, x_s_arr=x_s_arr, x_c_arr=x_c_arr, t_cur=cur_t, t_plan=t_p,
-                                       t_fore=t_f, alpha=alpha, customers=self.customers, num_of_vans=num_of_van, mode=mode)
+                                       t_fore=t_f, alpha=alpha, customers=self.customers, num_of_vans=num_of_van,
+                                       mode=mode)
 
         # metrics
         self.run_time = None
@@ -224,7 +232,7 @@ class Problem:
         time_2 = 0
         time_3 = 0
         print('no repositioning cost:{}'.format(self.route_com.compute_no_repositioning_cost()))
-        while iter_num < self.params.iter_time and time.time() - start < self.params.time_limit:
+        while iter_num < self.params.iter_time and time.time() - start < self.time_limit:
 
             # logging.info(f'{iter_num}')
             # weight list of destroy operators
@@ -360,16 +368,42 @@ class Problem:
         result = {'objective': sol.total_cost}
 
         # location, instruct and distance left
-        van_loc_list, van_n_list = [], []
+        van_loc_list, van_n_list, van_exp_inv_list, van_target_inv_list = [], [], [], []
         van_dis_left_list, dest_list = [], []
         for van in range(len(sol.routes)):
-            step_loc_list, step_n_list, step, cumu_step, s_ind = \
-                [0 for _ in range(self.t_plan)], [0 for _ in range(self.t_plan)], 0, sol.van_dis_left[van], 0
+            step_loc_list, step_n_list, step_exp_inv_list, step_target_inv_list, step, cumu_step, s_ind = \
+                [0 for _ in range(self.t_plan)], [0 for _ in range(self.t_plan)], [0 for _ in range(self.t_plan)], \
+                [0 for _ in range(self.t_plan)], 0, sol.van_dis_left[van], 0
             van_dis_flag = False
             while step < self.t_plan:
                 if step == cumu_step:
                     step_loc_list[int(step)] = sol.routes[van][s_ind]
                     step_n_list[int(step)] = sol.instructs[van][s_ind]
+                    if sol.routes[van][s_ind] > 0:
+                        if self.mode == 'multi':
+                            step_exp_inv_list[int(step)] = self.ei_s_arr[
+                                sol.routes[van][s_ind] - 1,
+                                round(self.cur_t - RE_START_T),
+                                round(self.cur_t - RE_START_T + step),
+                                round(self.x_s_arr[sol.routes[van][s_ind] - 1]),
+                                round(self.x_c_arr[sol.routes[van][s_ind] - 1])
+                            ]
+                            step_target_inv_list[int(step)] = \
+                                round(step_exp_inv_list[int(step)]) + sol.instructs[van][s_ind]
+                        elif self.mode == 'single':
+                            step_exp_inv_list[int(step)] = self.ei_s_arr[
+                                sol.routes[van][s_ind] - 1,
+                                round(self.cur_t - RE_START_T),
+                                round(self.cur_t - RE_START_T + step),
+                                round(self.x_s_arr[sol.routes[van][s_ind] - 1])
+                            ]
+                            step_target_inv_list[int(step)] = \
+                                round(step_exp_inv_list[int(step)]) + sol.instructs[van][s_ind]
+                        else:
+                            assert False, 'mode error'
+                    else:
+                        step_exp_inv_list[int(step)] = 0
+                        step_target_inv_list[int(step)] = 0
                     if s_ind < len(sol.routes[van]) - 1:
                         cumu_step += self.c_mat[sol.routes[van][s_ind], sol.routes[van][s_ind + 1]]
                     else:
@@ -382,16 +416,21 @@ class Problem:
                         s_ind += 1
                     step += 1
                 else:
-                    step_loc_list[int(step)], step_n_list[int(step)] = None, None
+                    step_loc_list[int(step)], step_n_list[int(step)], step_exp_inv_list[int(step)], step_target_inv_list[int(step)] = \
+                        None, None, None, None
                     step += 1
             van_loc_list.append(copy.deepcopy(step_loc_list))
             van_n_list.append(copy.deepcopy(step_n_list))
+            van_exp_inv_list.append(copy.deepcopy(step_exp_inv_list))
+            van_target_inv_list.append(copy.deepcopy(step_target_inv_list))
 
         assert len(van_loc_list) == len(van_n_list) == len(sol.routes)
         result['start_time'] = self.cur_t  # hour * 6
         result['routes'] = sol.routes
         result['van_dis_left'] = van_dis_left_list
         result['destination'] = dest_list
+        result['exp_inv'] = van_exp_inv_list
+        result['exp_target_inv'] = van_target_inv_list
         result['loc'] = van_loc_list
         result['n_r'] = van_n_list
 
