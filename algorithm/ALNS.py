@@ -125,7 +125,7 @@ class Problem:
         self.customers = [i for i in range(1, self.num_of_station + 1)]
 
         # route computer
-        self.route_com = RouteComputer(c_van=c_v, c_station=c_s, c_mat=c_mat, ei_s_arr=ei_s_arr, ei_c_arr=ei_c_arr,
+        self.route_com = RouteComputer(c_van=c_v, c_station=c_s, c_mat=self.c_mat, ei_s_arr=ei_s_arr, ei_c_arr=ei_c_arr,
                                        esd_arr=esd_arr, x_s_arr=x_s_arr, x_c_arr=x_c_arr, t_cur=cur_t, t_plan=t_p,
                                        t_fore=t_f, alpha=alpha, customers=self.customers, num_of_vans=num_of_van,
                                        mode=mode)
