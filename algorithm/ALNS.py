@@ -348,6 +348,8 @@ class Problem:
         for key, value in self.operator_time.items():
             print('{}:{}'.format(key.__name__, value))
         # comparison
+        print(f'best solution route: {self.best_sol.routes}')
+        print(f'best solution instructions: {self.best_sol.instructs}')
         print('no repositioning cost:{}'.format(self.route_com.compute_no_repositioning_cost()))
         if self.to_plot:
             self.plot()
